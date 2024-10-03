@@ -128,3 +128,4 @@ def generate_artist_fame():
         artists_fame.append(None)
     artists_data.insert(artists_data.columns.get_loc("artist") + 1, "fame", artists_fame)
     artists_data.to_csv("artist_fame.csv")
+
