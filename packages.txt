@@ -1,12 +1,12 @@
-wget
-unzip
-libnss3
-libgconf-2-4
-libgl1-mesa-glx
-libglib2.0-0
+# Install Chromium browser
+chromium
 
-deb http://deb.debian.org/debian buster main
-deb http://deb.debian.org/debian buster-updates main
-deb http://security.debian.org/debian-security buster/updates main
-chromium-browser
-chromedriver
+# Install Chromedriver
+chromium-driver
+
+# Install OpenCV dependencies
+libglib2.0-0
+libsm6
+libxext6
+libxrender-dev
+libgl1-mesa-glx
