@@ -1,5 +1,7 @@
 [server]
 headless = true
+enableCORS = false
+port = 8501
 
-[webdriver]
-binary_location = "/usr/bin/chromium-browser"
+[selenium]
+binary_location = "/usr/bin/chromium"
