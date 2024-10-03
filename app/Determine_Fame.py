@@ -6,31 +6,38 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver.edge.service import Service as EdgeService
+from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from selenium.webdriver.edge.options import Options as EdgeOptions
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
 from webdriver_manager.microsoft import EdgeChromiumDriverManager
 import time
 import unicodedata
 
+# Initialize global variables
 artists_data = pd.DataFrame()
 artists, artists_fame, unavailable_artists = [], [], []
 unique_artists = {}
-driver = webdriver.Chrome()
+driver = None  # Set driver to None initially
 
 
 def clean_string(text):
+    """Remove special characters and normalize text."""
     nfkd_string = unicodedata.normalize("NFKD", str(text))
     text = "".join([c for c in nfkd_string if not unicodedata.combining(c)])
     return text
 
 
 def cosine_sim_vectors(v1, v2):
+    """Compute cosine similarity between two vectors."""
     v1 = v1.reshape(1, -1)
     v2 = v2.reshape(1, -1)
     return cosine_similarity(v1, v2)[0][0]
 
 
 def name_similarity(text1, text2):
+    """Calculate the similarity between two strings using cosine similarity."""
     text1 = clean_string(text1)
     text2 = clean_string(text2)
     vector = CountVectorizer().fit_transform([text1, text2])
@@ -38,21 +45,33 @@ def name_similarity(text1, text2):
 
 
 def setup(platform):
+    """Setup function to initialize the Selenium driver based on the specified platform."""
     global artists_data
     artists_data = pd.read_csv("artDataset.csv")
     global artists
     artists = artists_data["artist"].tolist()
     global driver
+
+    # Configure headless options for the chosen platform
     if name_similarity(platform, "chrome") > 0.6:
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager.install()))
+        chrome_options = ChromeOptions()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=chrome_options)
     elif name_similarity(platform, "firefox") > 0.6:
-        driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()))
+        firefox_options = FirefoxOptions()
+        firefox_options.add_argument("--headless")
+        driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()), options=firefox_options)
     elif name_similarity(platform, "microsoft edge") > 0.4:
-        driver = webdriver.ChromiumEdge(service=EdgeService(EdgeChromiumDriverManager().install()))
-    driver.implicitly_wait(1)
+        edge_options = EdgeOptions()
+        edge_options.add_argument("--headless")
+        driver = webdriver.ChromiumEdge(service=EdgeService(EdgeChromiumDriverManager().install()), options=edge_options)
+    driver.implicitly_wait(3)
 
 
 def artsy_link(artist):
+    """Generate a direct Artsy link for the given artist."""
     name = clean_string(artist)
     print(f"Artist: {artist} ({name})")
     name = "-".join(name.lower().split())
@@ -61,6 +80,7 @@ def artsy_link(artist):
 
 
 def artsy_search_link(artist):
+    """Search for an artist on Artsy and get the search result link."""
     driver.get("https://artsy.net/artists/")
     search = driver.find_element("xpath", "//input[@class='Input__StyledInput-bysdh7-0 gFWniP']")
     search.send_keys(artist)
@@ -68,6 +88,7 @@ def artsy_search_link(artist):
     results_list = driver.find_element("xpath", "//ul[@class='react-autosuggest__suggestions-list']")
     iteration = 0
     highest_similarity, highest_iteration = 0, 0
+
     try:
         result = results_list.find_element("xpath", f".//li[@data-suggestion-index='{iteration}']")
         while result:
@@ -91,10 +112,12 @@ def artsy_search_link(artist):
 
 
 def biography_artsy(artist):
+    """Retrieve the biography of an artist from Artsy."""
     links = [artsy_link, artsy_search_link]
     for num_link in range(len(links)):
         link = links[num_link](artist)
-        if len(link) == 0: break
+        if len(link) == 0: 
+            break
         driver.get(link)
         try:
             driver.find_element("xpath", "//div[@class='Box-sc-15se88d-0 Text-sc-18gcpao-0  bTXFzS']")
@@ -113,6 +136,7 @@ def biography_artsy(artist):
 
 
 def generate_artist_fame():
+    """Generate a fame score for each artist."""
     for artist in artists:
         if artist not in unique_artists:
             biography = biography_artsy(artist)
@@ -128,5 +152,3 @@ def generate_artist_fame():
         artists_fame.append(None)
     artists_data.insert(artists_data.columns.get_loc("artist") + 1, "fame", artists_fame)
     artists_data.to_csv("artist_fame.csv")
-
-
